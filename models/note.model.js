@@ -3,14 +3,15 @@ import mongoose from "mongoose";
 const noteSchema = new mongoose.Schema(
     {
         title: {
-            type : string, // data type string
+            type : String, // data type string
             required : true, // title mandatory hai
-            trim : true // extra spaces remove karega
+            trim : true, // extra spaces remove karega
+            unique : true
         }, 
 
         // Note ka description
         content : {
-            type : string,
+            type : String,
             required : true
         },   
     },
