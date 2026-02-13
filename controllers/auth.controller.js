@@ -31,10 +31,28 @@ export const register = async (req, res) =>{
             password : hashedPassword
         });
 
-        res.status(201).json({
-            success : true,
-            message : "User registered successfully"
-        })
+        const token = await jwt.sign(
+            {id : user._id},
+            process.env.JWT_SECRET,
+            {expiresIn: "7d"}
+        );
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "User registered successfully",
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email
+            }
+        });
 
     }catch(error){
         res.status(500).json({
@@ -56,7 +74,7 @@ export const login = async (req, res) =>{
                 message : "All fields are required"
             })
         }
-
+        
         const user = await User.findOne({ email });
 
         if (!user) {
@@ -75,18 +93,50 @@ export const login = async (req, res) =>{
             })
         }
 
-        const token = jwt.sign(
+       const token = jwt.sign(
             {id : user._id},
             process.env.JWT_SECRET,
-            {expiresIn : "1d"}
+            {expiresIn: "7d"}
         );
+
+        res.cookie("token", token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict",
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
 
         res.status(200).json({
             success: true,
-            token
+            message: "Login successful",
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email
+            }
         });
 
 
+    }catch(error){
+        res.status(500).json({
+            success : false,
+            message : "server error"
+        })
+    }
+}
+
+export const logout = async (req, res) =>{
+    try{
+
+        res.cookie("token", "", {
+            httpOnly: true,
+            expires: new Date(0)
+        });
+
+         res.status(200).json({
+            success: true,
+            message: "Logged out successfully"
+        });
     }catch(error){
         res.status(500).json({
             success : false,
