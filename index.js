@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import noteRoutes from "./routes/note.routes.js";
 import authRoutes from "./routes/auth.routes.js";
+import cookieParser from "cookie-parser";
 
 const app = express();
 
@@ -12,6 +13,7 @@ dotenv.config();
 
 // Middleware
 app.use(express.json());
+app.use(cookieParser());
 
 // Database connect kar rahe hain
 connectDB();
