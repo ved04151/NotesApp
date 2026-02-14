@@ -2,8 +2,12 @@ import Note from "../models/note.model.js";
 
 export const createNote = async (req, res) => {
     try {
+        // Request body se title aur content nikal rahe hain
         const { title, content } = req.body;
 
+        // Validation:
+        // ?.trim() ka matlab → agar value exist karti hai to trim karo
+        // Empty string ya spaces allowed nahi honge
         if (!title?.trim() || !content?.trim()) {
             return res.status(400).json({
                 success: false,
@@ -11,7 +15,10 @@ export const createNote = async (req, res) => {
             });
         }
 
-        // // 🔥 Manual duplicate check
+        // ================= OPTIONAL MANUAL DUPLICATE CHECK =================
+        // Ye code check karta ki same user ke paas same title wali note already hai ya nahi
+        // Abhi comment hai kyunki aap database unique index se duplicate handle kar rahe ho
+
         // const existingNote = await Note.findOne({
         //     title,
         //     user: req.user._id
@@ -24,12 +31,15 @@ export const createNote = async (req, res) => {
         //     });
         // }
 
+        // Database me new note create kar rahe hain
+        // req.user._id middleware (protect) se aa raha hai
         const note = await Note.create({
             title,
             content,
-            user: req.user._id
+            user: req.user._id  // note kis user ki hai
         });
 
+        // Success response
         res.status(201).json({
             success: true,
             message: "Note created successfully",
@@ -38,6 +48,8 @@ export const createNote = async (req, res) => {
 
     } catch (error) {
 
+        // MongoDB duplicate key error code = 11000
+        // Agar unique constraint violate hua (same title same user)
         if (error.code === 11000) {
             return res.status(400).json({
                 success: false,
@@ -55,13 +67,14 @@ export const createNote = async (req, res) => {
 
 export const getAllNotes = async (req, res) => {
     try{
-        //Database se saare Notes fetch kar rahe hai
+        // Database se sirf current logged-in user ki notes fetch kar rahe hain
+        // req.user._id middleware (protect) se aata hai
         const notes = await Note.find({ user: req.user._id });
 
         res.status(200).json({
             success : true,
-            count : notes.length,
-            data : notes
+            count : notes.length, // total notes count
+            data : notes          // notes data
         })
 
     }catch(error){
@@ -75,11 +88,14 @@ export const getAllNotes = async (req, res) => {
 
 export const getNote = async (req, res) => {
     try {
-        //Url se id le rahe hai
+        // URL params se note id le rahe hain
         const id = req.params.id;
-        const note = await Note.findOne({_id : id, user : req.user.id});
 
-        //Agar
+        // Database me note find kar rahe hain
+        // Condition: note id match + same user ka hona chahiye
+        const note = await Note.findOne({_id : id, user : req.user._id});
+
+        // Agar note exist nahi karta
         if(!note){
             return res.status(404).json({
                 success : false,
@@ -103,9 +119,12 @@ export const getNote = async (req, res) => {
 
 export const updateNote = async (req, res) => {
     try {
+        // URL params se id
         const id = req.params.id;
+        // Request body se updated data
         const { title, content } = req.body;
 
+        // Validation (empty ya spaces allowed nahi)
         if (!title?.trim() || !content?.trim()) {
             return res.status(400).json({
                 success: false,
@@ -113,11 +132,13 @@ export const updateNote = async (req, res) => {
             });
         }
 
-        // // 🔥 Check duplicate except current note
+        // ================= OPTIONAL DUPLICATE CHECK =================
+        // Current note ko ignore karke duplicate title check kar sakte hain
+
         // const duplicate = await Note.findOne({
         //     title,
         //     user: req.user._id,
-        //     _id: { $ne: id }
+        //     _id: { $ne: id } // $ne = not equal
         // });
 
         // if (duplicate) {
@@ -127,12 +148,17 @@ export const updateNote = async (req, res) => {
         //     });
         // }
 
+        // Database me note update kar rahe hain
         const updatedNote = await Note.findOneAndUpdate(
-            { _id: id, user: req.user._id },
-            { title, content },
-            { returnDocument: 'after', runValidators: true }
+            { _id: id, user: req.user._id }, // condition
+            { title, content },              // update data
+            {
+                returnDocument: 'after',     // updated document return karo
+                runValidators: true          // schema validation apply karo
+            }
         );
 
+        // Agar note nahi mila
         if (!updatedNote) {
             return res.status(404).json({
                 success: false,
@@ -147,6 +173,7 @@ export const updateNote = async (req, res) => {
         });
 
     } catch (error) {
+        // Duplicate key error (unique index violation)
         if (error.code === 11000) {
             return res.status(400).json({
                 success: false,
@@ -165,11 +192,11 @@ export const deleteNote = async (req, res) => {
     try {
         const id = req.params.id;
 
-        const deletedNote = await Note.findByIdAndDelete({
-            _id: id,
-            user: req.user._id
-        });
+        // Note delete kar rahe hain
+        // Condition: id match + same user ka hona chahiye
+        const deletedNote = await Note.findOneAndDelete({ _id: id, user: req.user._id });
 
+        // Agar note exist nahi karta
         if (!deletedNote) {
             return res.status(404).json({
                 success: false,
