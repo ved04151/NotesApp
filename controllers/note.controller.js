@@ -86,6 +86,57 @@ export const getAllNotes = async (req, res) => {
     }
 };
 
+export const getNotes = async (req, res) => {
+    try{
+
+        // 1️⃣ Query params
+        const page = parseInt(req.query.page) || 1;
+        // const limit = parseInt(req.query.limit) || 5;
+
+        const limit = Math.min(parseInt(req.query.limit) || 5, 100); // data limit will be with in 5 to 100
+
+
+        if (page < 1 || limit < 1) {
+            return res.status(400).json({
+                success: false,
+                message: "Page and limit must be positive numbers"
+            });
+        }
+
+        // 2️⃣ Calculate skip
+        const skip = (page - 1) * limit;
+
+        // 3️⃣ Total documents count (for metadata)
+        const totalNotes = await Note.countDocuments({
+            user: req.user.id
+        });
+
+        // 4️⃣ Fetch paginated notes
+        const notes = await Note.find({ user: req.user.id })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        // 5️⃣ Send structured response
+        res.status(200).json({
+            success: true,
+            totalNotes,
+            currentPage: page,
+            totalPages: Math.ceil(totalNotes / limit),
+            notes
+        });
+
+
+    }catch(error){
+        res.status(500).json({
+            success : false,
+            message : "server error",
+            error : error,
+        })
+    }
+};
+
+
 export const getNote = async (req, res) => {
     try {
         // URL params se note id le rahe hain
