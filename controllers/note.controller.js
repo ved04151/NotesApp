@@ -89,13 +89,16 @@ export const getAllNotes = async (req, res) => {
 export const getNotes = async (req, res) => {
     try{
 
-        // 1️⃣ Query params
+        // Get page number from query, default = 1
         const page = parseInt(req.query.page) || 1;
-        // const limit = parseInt(req.query.limit) || 5;
 
-        const limit = Math.min(parseInt(req.query.limit) || 5, 100); // data limit will be with in 5 to 100
+        // Get limit from query, default = 10, max allowed = 100
+        const limit = Math.min(parseInt(req.query.limit) || 10, 100);
 
-
+        // Get search term from query
+        const search = req.query.search || "";
+        
+        // Validate page and limit
         if (page < 1 || limit < 1) {
             return res.status(400).json({
                 success: false,
@@ -103,26 +106,47 @@ export const getNotes = async (req, res) => {
             });
         }
 
-        // 2️⃣ Calculate skip
+        // Calculate how many documents to skip
         const skip = (page - 1) * limit;
 
-        // 3️⃣ Total documents count (for metadata)
-        const totalNotes = await Note.countDocuments({
+        // Base filter: only logged-in user's notes
+        const filter = {
             user: req.user.id
-        });
+        };
 
-        // 4️⃣ Fetch paginated notes
-        const notes = await Note.find({ user: req.user.id })
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit);
+        // If search exists, add title/description matching
+        if (search) {
+            filter.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { content: { $regex: search, $options: "i" } }
+            ];
+        }
 
-        // 5️⃣ Send structured response
+        // { // Thats how its JSON LOOKS 
+        //     user: "user1",
+        //     $or: [ // $or is a MongoDB operator like -> Inme se koi bhi condition true ho to document match ho.
+        //         { title: { $regex: "gym", $options: "i" } }, $regex ==> Regular Expression ==> partial matching
+        //         { description: { $regex: "gym", $options: "i" } } "i" ==> case sensitive
+        //     ]
+        // }
+
+        // Count total filtered notes (important for pagination) 
+        const totalNotes = await Note.countDocuments(filter); // => to calculate total number of pages using math.ceil notes/limit
+
+        // Fetch paginated and sorted notes
+        const notes = await Note.find(filter) // it will find all notes according to filter
+            .sort({ createdAt: -1 }) // newest first -1 ==> descending order
+            .skip(skip)              // skip previous pages
+            .limit(limit);           // limit results per page
+
+        // Send structured response
         res.status(200).json({
             success: true,
             totalNotes,
             currentPage: page,
             totalPages: Math.ceil(totalNotes / limit),
+            hasNextPage: page < Math.ceil(totalNotes / limit),
+            hasPrevPage: page > 1,
             notes
         });
 
