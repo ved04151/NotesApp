@@ -6,6 +6,7 @@ import connectDB from "./config/db.js";
 import noteRoutes from "./routes/note.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import cookieParser from "cookie-parser";
+import { startAutoDeleteJob } from "./utils/autoDelete.js";
 
 const app = express();
 
@@ -17,6 +18,9 @@ app.use(cookieParser());
 
 // Database connect kar rahe hain
 connectDB();
+
+// Auto after 30 days clear kar rahe hai Thrash ko use CRON
+startAutoDeleteJob();
 
 // Notes routes connect kar rahe hain
 app.use("/api/notes", noteRoutes);
