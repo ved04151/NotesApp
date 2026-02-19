@@ -111,7 +111,8 @@ export const getNotes = async (req, res) => {
 
         // Base filter: only logged-in user's notes
         const filter = {
-            user: req.user.id
+            user: req.user.id,
+            isDeleted: false
         };
 
         // If search exists, add title/description matching
@@ -291,3 +292,114 @@ export const deleteNote = async (req, res) => {
         });
     }
 };
+
+export const softDeleteNote = async (req, res) =>{
+    try {
+        const note = await Note.findOneAndUpdate(
+            {_id: req.params.id, user : req.user._id},
+            {
+                isDeleted : true,
+                deletedAt : new Date()
+            },
+            {returnDocument : "after"}
+        )
+
+        if(!note) {
+            return res.status(404).json({
+                success : false,
+                message : "Note not found"
+            })
+        }
+
+        res.status(200).json({
+            success : true,
+            message : "Note moved to trash"
+        })
+    }catch (error){
+        res.status(500).json({
+            success : false,
+            message : error.message
+        })
+    }
+}
+
+export const getTrashNotes = async (req, res) => {
+    try{
+        const notes = await Note.find({
+            user : req.user._id, 
+            isDeleted : true
+        }).sort({deletedAt : -1});
+
+        res.status(200).json({
+            success : true,
+            notes
+        })
+    }
+    catch(error){
+        console.error("Trash Error:", error);
+        res.status(500).json({
+            success : false,
+            message : error.message
+        })
+    }
+}
+
+export const restoreNote = async (req, res) => {
+    try{
+        const note = await Note.findOneAndUpdate(
+            {_id: req.params.id, user : req.user.id},
+            {
+                isDeleted : false,
+                deletedAt : null
+            },
+            {returnDocument : "after"}
+        )
+
+        if (!note) {
+            return res.status(404).json({
+                success: false,
+                message: "Note not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Note restored successfully"
+        });
+    }
+    catch(error){
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+}
+
+export const permanentlyDeleteNote = async (req, res) => {
+    try{
+        const note = await Note.findOneAndDelete({
+            _id : req.params.id,
+            user : req.user.id,
+            isDeleted : true
+        })
+
+        if (!note) {
+            return res.status(404).json({
+                success: false,
+                message: "Note not found"
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Note Deleted successfully"
+        });
+
+    }
+    catch(error){
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+}
