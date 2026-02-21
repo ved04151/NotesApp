@@ -97,6 +97,13 @@ export const getNotes = async (req, res) => {
 
         // Get search term from query
         const search = req.query.search || "";
+
+        const allowedSortFields = ["createdAt", "updatedAt", "title"]; //Validation on sortField so user can sort only given fields
+
+        const sortField = allowedSortFields.includes(req.query.sort) ? req.query.sort : "createdAt";
+
+        // const sortField = req.query.sort || "createdAt";  // default sort
+        const order = req.query.order === "asc" ? 1 : -1; // default desc
         
         // Validate page and limit
         if (page < 1 || limit < 1) {
@@ -125,7 +132,7 @@ export const getNotes = async (req, res) => {
 
         // { // Thats how its JSON LOOKS 
         //     user: "user1",
-        //     $or: [ // $or is a MongoDB operator like -> Inme se koi bhi condition true ho to document match ho.
+        //     $or: [ // $or is a MongoDB operator like -> Inme se koi bhi condition true ho to document match hai.
         //         { title: { $regex: "gym", $options: "i" } }, $regex ==> Regular Expression ==> partial matching
         //         { description: { $regex: "gym", $options: "i" } } "i" ==> case sensitive
         //     ]
@@ -136,7 +143,7 @@ export const getNotes = async (req, res) => {
 
         // Fetch paginated and sorted notes
         const notes = await Note.find(filter) // it will find all notes according to filter
-            .sort({ createdAt: -1 }) // newest first -1 ==> descending order
+            .sort({ [sortField]: order }) // dynamic sort ==> sortField mean according to which field : order like 1 aec or -1 dec
             .skip(skip)              // skip previous pages
             .limit(limit);           // limit results per page
 
@@ -148,6 +155,8 @@ export const getNotes = async (req, res) => {
             totalPages: Math.ceil(totalNotes / limit),
             hasNextPage: page < Math.ceil(totalNotes / limit),
             hasPrevPage: page > 1,
+            sortBy: sortField,
+            order: order === 1 ? "asc" : "desc",
             notes
         });
 
