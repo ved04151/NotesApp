@@ -333,45 +333,113 @@ export const softDeleteNote = async (req, res) =>{
 }
 
 export const getTrashNotes = async (req, res) => {
-    try{
-        const page = Number(req.query.page) || 1;
-        const limit = Number(req.query.limit) || 5;
+  try {
 
-        if (page < 1 || limit < 1) {
-           return res.status(400).json({ message: "Invalid pagination values" });
-        }
+    // -----------------------------
+    // 1️⃣ Pagination Setup
+    // -----------------------------
 
-        const skip = (page-1)*limit;
+    const page = Number(req.query.page) || 1;
+    const limit = Math.min(Number(req.query.limit) || 5, 100); 
+    // limit max 100 tak allow (safety)
 
-        const total = Note.countDocuments({
-            user : user.req.id,
-            isDeleted : true
-        })
-
-        const notes = await Note.find({
-            user : req.user._id, 
-            isDeleted : true
-        })
-        .sort({deletedAt : -1})
-        .skip(skip)
-        .limit(limit);
-
-        res.status(200).json({
-            success : true,
-            total,
-            page,
-            pages: Math.ceil(total/limit),
-            notes
-        });
+    if (page < 1 || limit < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid pagination values"
+      });
     }
-    catch(error){
-        console.error("Trash Error:", error);
-        res.status(500).json({
-            success : false,
-            message : error.message
-        })
+
+    const skip = (page - 1) * limit;
+
+
+    // -----------------------------
+    // 2️⃣ Search Setup
+    // -----------------------------
+
+    const search = req.query.search || "";
+
+
+    // -----------------------------
+    // 3️⃣ Sorting Setup
+    // -----------------------------
+
+    // Whitelist allowed sort fields (security purpose)
+    const allowedSortFields = ["createdAt", "updatedAt", "title", "deletedAt"];
+
+    const sortField = allowedSortFields.includes(req.query.sort)
+      ? req.query.sort
+      : "deletedAt"; // default sort by deletedAt (latest deleted first)
+
+    const order = req.query.order === "asc" ? 1 : -1;
+
+
+    // -----------------------------
+    // 4️⃣ Base Filter (Only Trash)
+    // -----------------------------
+
+    const filter = {
+      user: req.user.id,
+      isDeleted: true
+    };
+
+
+    // -----------------------------
+    // 5️⃣ Add Search Condition (If Exists)
+    // -----------------------------
+
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { content: { $regex: search, $options: "i" } }
+      ];
     }
-}
+
+
+    // -----------------------------
+    // 6️⃣ Count Total Trash Notes
+    // -----------------------------
+
+    const total = await Note.countDocuments(filter);
+
+
+    // -----------------------------
+    // 7️⃣ Fetch Trash Notes
+    // -----------------------------
+
+    const notes = await Note.find(filter)
+      .sort({ [sortField]: order })
+      .skip(skip)
+      .limit(limit);
+
+
+    // -----------------------------
+    // 8️⃣ Send Response
+    // -----------------------------
+
+    res.status(200).json({
+      success: true,
+      total,
+      currentPage: page,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: page < Math.ceil(total / limit),
+      hasPrevPage: page > 1,
+      sortBy: sortField,
+      order: order === 1 ? "asc" : "desc",
+      notes
+    });
+
+  } catch (error) {
+
+    console.error("Trash Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
 
 export const restoreNote = async (req, res) => {
     try{
