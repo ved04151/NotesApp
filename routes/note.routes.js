@@ -1,6 +1,6 @@
 import express from "express";
 import { createNote, getAllNotes, getNote, updateNote, deleteNote, getNotes } from "../controllers/note.controller.js";
-import { softDeleteNote, getTrashNotes, restoreNote, permanentlyDeleteNote} from "../controllers/note.controller.js";
+import { softDeleteNote, getTrashNotes, restoreNote, permanentlyDeleteNote, togglePinNote} from "../controllers/note.controller.js";
 import { protect } from "../middlewares/auth.middleware.js";
 
 // Router instance bana rahe hain
@@ -41,6 +41,9 @@ router.patch("/:id/restore", protect, restoreNote);
 
 // permanently Delete note
 router.delete("/:id/permanent", protect, permanentlyDeleteNote);
+
+// Pin Notes
+router.patch("/:id/pin", protect, togglePinNote);
 
 
 export default router;

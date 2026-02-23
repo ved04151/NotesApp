@@ -20,6 +20,11 @@ const noteSchema = new mongoose.Schema(
             required: true
         },
 
+        isPinned: {
+            type: Boolean,
+            default: false
+        },
+
         isDeleted : {
             type : Boolean,
             default : false,

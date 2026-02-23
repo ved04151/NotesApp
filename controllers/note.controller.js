@@ -143,7 +143,10 @@ export const getNotes = async (req, res) => {
 
         // Fetch paginated and sorted notes
         const notes = await Note.find(filter) // it will find all notes according to filter
-            .sort({ [sortField]: order }) // dynamic sort ==> sortField mean according to which field : order like 1 aec or -1 dec
+            .sort({
+                isPinned: -1,         // pinned always first
+                [sortField]: order    // then normal sorting
+            })
             .skip(skip)              // skip previous pages
             .limit(limit);           // limit results per page
 
@@ -500,3 +503,38 @@ export const permanentlyDeleteNote = async (req, res) => {
         });
     }
 }
+
+
+export const togglePinNote = async (req, res) => {
+  try {
+    const note = await Note.findOne({
+      _id: req.params.id,
+      user: req.user.id,
+      isDeleted: false
+    });
+
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        message: "Note not found"
+      });
+    }
+
+    // Toggle pin status
+    note.isPinned = !note.isPinned;
+    await note.save();
+
+    res.status(200).json({
+      success: true,
+      message: note.isPinned ? "Note pinned" : "Note unpinned",
+      note
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
